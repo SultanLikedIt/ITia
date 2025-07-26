@@ -109,23 +109,49 @@ if __name__ == "__main__":
             print(teams_df[['name', 'short_name']].head(10))
             collector.save_data(teams_df, 'serie_a_teams')
         
-        # Step 3: Get matches
-        print("Fetching Serie A matches...")
-        matches_df = collector.get_matches(league_code, 2024)
-        if matches_df is not None:
-            print(f"Found {len(matches_df)} matches")
-            collector.save_data(matches_df, 'serie_a_matches_2024')
+        # Step 3: Get matches for multiple seasons
+        seasons = [2022, 2023, 2024]
+        all_matches = []
+        
+        for season in seasons:
+            print(f"Fetching Serie A matches for {season}-{season+1} season...")
+            matches_df = collector.get_matches(league_code, season)
             
-            # Show some basic stats
-            finished_matches = matches_df[matches_df['status'] == 'FINISHED']
-            print(f"\nFinished matches: {len(finished_matches)}")
-            if len(finished_matches) > 0:
-                print("Sample Serie A results:")
-                print(finished_matches[['date', 'home_team', 'away_team', 'home_score', 'away_score']].head())
+            if matches_df is not None:
+                print(f"Found {len(matches_df)} matches for {season}-{season+1}")
                 
-                # Show some interesting stats
-                print(f"\nLeague standings preview:")
-                home_wins = finished_matches['winner'].value_counts()
-                print(home_wins)
+                # Add season column for tracking
+                matches_df['season'] = f"{season}-{season+1}"
+                
+                # Save individual season
+                collector.save_data(matches_df, f'serie_a_matches_{season}')
+                
+                # Add to combined data
+                all_matches.append(matches_df)
+                
+                # Show quick stats
+                finished_matches = matches_df[matches_df['status'] == 'FINISHED']
+                print(f"  → Finished matches: {len(finished_matches)}")
+                
+            else:
+                print(f"Failed to get data for {season}")
+        
+        # Combine all seasons
+        if all_matches:
+            combined_matches = pd.concat(all_matches, ignore_index=True)
+            collector.save_data(combined_matches, 'serie_a_all_seasons')
+            print(f"\n🎉 TOTAL DATA COLLECTED:")
+            print(f"Combined matches across all seasons: {len(combined_matches)}")
+            
+            # Season breakdown
+            season_counts = combined_matches['season'].value_counts().sort_index()
+            for season, count in season_counts.items():
+                print(f"  {season}: {count} matches")
+            
+            # Overall stats
+            all_finished = combined_matches[combined_matches['status'] == 'FINISHED']
+            if len(all_finished) > 0:
+                print(f"\nOverall finished matches: {len(all_finished)}")
+                print("Ready for machine learning! 🚀")
     else:
         print("Serie A not accessible with this API key")
