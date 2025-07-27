@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serie A Match Predictor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #059669, #0d9488);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .prediction-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .team-selection {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .team-select {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .team-select label {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .team-select select {
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+        }
+
+        .team-select select option {
+            color: black;
+        }
+
+        .vs-section {
+            text-align: center;
+        }
+
+        .vs-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .predict-btn {
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .predict-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .predict-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .prediction-result {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .match-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .prediction-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .confidence-text {
+            font-size: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .probability-bars {
+            margin: 30px 0;
+        }
+
+        .prob-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .prob-label {
+            width: 120px;
+            font-weight: bold;
+        }
+
+        .prob-track {
+            flex: 1;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .prob-fill {
+            height: 100%;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: width 1s ease-out;
+        }
+
+        .prob-home { background: #10b981; }
+        .prob-draw { background: #f59e0b; }
+        .prob-away { background: #ef4444; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-box h3 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .team-stats {
+            margin-bottom: 20px;
+        }
+
+        .team-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #fbbf24;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .team-selection {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ Serie A MR Predictor - ITia by Uygar YILMAZ</h1>
+            <p style="font-size: 1.2rem; margin-bottom: 10px;">AI-Powered Match Outcome Prediction</p>
+            <p style="opacity: 0.8;">Machine Learning Model by Uygar YILMAZ - Politecnico di Torino Computer Engineering Student</p>
+        </div>
+
+        <div class="prediction-box">
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 1.8rem;">Select Teams</h2>
+            
+            <div class="team-selection">
+                <div class="team-select">
+                    <label>Home Team</label>
+                    <select id="homeTeam">
+                        <option value="">Select home team</option>
+                    </select>
+                </div>
+
+                <div class="vs-section">
+                    <div class="vs-text">VS</div>
+                    <button class="predict-btn" id="predictBtn" onclick="predictMatch()">
+                        Predict
+                    </button>
+                </div>
+
+                <div class="team-select">
+                    <label>Away Team</label>
+                    <select id="awayTeam">
+                        <option value="">Select away team</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                🤔 Making prediction...
+            </div>
+
+            <div class="error" id="error">
+                <strong>Error:</strong> <span id="errorMessage"></span>
+            </div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="prediction-box">
+                <h3 style="text-align: center; margin-bottom: 30px; font-size: 1.8rem;">🎯 Prediction Result</h3>
+                
+                <div class="prediction-result">
+                    <div class="match-title" id="matchTitle"></div>
+                    <div class="prediction-text" id="predictionText"></div>
+                    <div class="confidence-text" id="confidenceText"></div>
+                </div>
+
+                <div class="probability-bars" id="probabilityBars">
+                    <div class="prob-bar">
+                        <div class="prob-label" id="homeLabel">Home</div>
+                        <div class="prob-track">
+                            <div class="prob-fill prob-home" id="homeFill"></div>
+                        </div>
+                    </div>
+                    <div class="prob-bar">
+                        <div class="prob-label">Draw</div>
+                        <div class="prob-track">
+                            <div class="prob-fill prob-draw" id="drawFill"></div>
+                        </div>
+                    </div>
+                    <div class="prob-bar">
+                        <div class="prob-label" id="awayLabel">Away</div>
+                        <div class="prob-track">
+                            <div class="prob-fill prob-away" id="awayFill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h3>📈 Recent Form (Last 5 matches)</h3>
+                    <div class="team-stats">
+                        <div class="team-name" id="homeFormTitle">Home Team</div>
+                        <div class="stats-row" id="homeFormStats">
+                            <div>Wins: <span id="homeWins">-</span></div>
+                            <div>Points: <span id="homePoints">-</span></div>
+                            <div>Goals For: <span id="homeGoalsFor">-</span></div>
+                            <div>Goals Against: <span id="homeGoalsAgainst">-</span></div>
+                        </div>
+                    </div>
+                    <div class="team-stats">
+                        <div class="team-name" id="awayFormTitle">Away Team</div>
+                        <div class="stats-row" id="awayFormStats">
+                            <div>Wins: <span id="awayWins">-</span></div>
+                            <div>Points: <span id="awayPoints">-</span></div>
+                            <div>Goals For: <span id="awayGoalsFor">-</span></div>
+                            <div>Goals Against: <span id="awayGoalsAgainst">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <h3>⚽ Match Analysis</h3>
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 1.1rem; margin-bottom: 15px;">
+                            AI Confidence: <span id="aiConfidence" style="color: #10b981; font-weight: bold;">-</span>
+                        </div>
+                        <div style="font-size: 0.9rem; opacity: 0.8; line-height: 1.5;">
+                            This prediction is based on recent team form, home/away advantage, 
+                            head-to-head records, and historical performance patterns analyzed 
+                            by our machine learning model.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Load teams when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTeams();
+        });
+
+        async function loadTeams() {
+            try {
+                const response = await fetch(`${API_BASE}/teams`);
+                const data = await response.json();
+                
+                const homeSelect = document.getElementById('homeTeam');
+                const awaySelect = document.getElementById('awayTeam');
+                
+                // Clear existing options
+                homeSelect.innerHTML = '<option value="">Select home team</option>';
+                awaySelect.innerHTML = '<option value="">Select away team</option>';
+                
+                // Add team options
+                data.teams.forEach(team => {
+                    homeSelect.innerHTML += `<option value="${team}">${team}</option>`;
+                    awaySelect.innerHTML += `<option value="${team}">${team}</option>`;
+                });
+                
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                showError('Could not load teams. Make sure the API is running at http://localhost:8000');
+            }
+        }
+
+        async function predictMatch() {
+            const homeTeam = document.getElementById('homeTeam').value;
+            const awayTeam = document.getElementById('awayTeam').value;
+            
+            if (!homeTeam || !awayTeam) {
+                showError('Please select both teams');
+                return;
+            }
+            
+            if (homeTeam === awayTeam) {
+                showError('Please select two different teams');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('predictBtn').disabled = true;
+            document.getElementById('resultSection').classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        home_team: homeTeam,
+                        away_team: awayTeam
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const prediction = await response.json();
+                displayPrediction(prediction);
+                
+            } catch (error) {
+                console.error('Error making prediction:', error);
+                showError('Failed to make prediction. Make sure the API is running!');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('predictBtn').disabled = false;
+            }
+        }
+
+        function displayPrediction(prediction) {
+            // Update match title
+            document.getElementById('matchTitle').textContent = 
+                `${prediction.home_team} vs ${prediction.away_team}`;
+
+            // Update prediction text
+            let predictionText = '';
+            let predictionColor = '';
+            
+            switch (prediction.prediction) {
+                case 'HOME_TEAM':
+                    predictionText = `${prediction.home_team} Wins`;
+                    predictionColor = '#10b981';
+                    break;
+                case 'AWAY_TEAM':
+                    predictionText = `${prediction.away_team} Wins`;
+                    predictionColor = '#ef4444';
+                    break;
+                case 'DRAW':
+                    predictionText = 'Draw';
+                    predictionColor = '#f59e0b';
+                    break;
+            }
+            
+            const predictionElement = document.getElementById('predictionText');
+            predictionElement.textContent = predictionText;
+            predictionElement.style.color = predictionColor;
+
+            // Update confidence
+            document.getElementById('confidenceText').textContent = 
+                `Confidence: ${(prediction.confidence * 100).toFixed(1)}%`;
+
+            // Update probability bars
+            updateProbabilityBar('homeFill', 'homeLabel', prediction.probabilities.HOME_TEAM, prediction.home_team);
+            updateProbabilityBar('drawFill', null, prediction.probabilities.DRAW, 'Draw');
+            updateProbabilityBar('awayFill', 'awayLabel', prediction.probabilities.AWAY_TEAM, prediction.away_team);
+
+            // Update form stats
+            updateFormStats('home', prediction.home_form, prediction.home_team);
+            updateFormStats('away', prediction.away_form, prediction.away_team);
+            
+            // Update AI confidence
+            document.getElementById('aiConfidence').textContent = 
+                `${(prediction.confidence * 100).toFixed(1)}%`;
+
+            // Show results
+            document.getElementById('resultSection').classList.add('show');
+        }
+
+        function updateProbabilityBar(fillId, labelId, probability, teamName) {
+            const fillElement = document.getElementById(fillId);
+            const percentage = (probability * 100).toFixed(1);
+            
+            setTimeout(() => {
+                fillElement.style.width = `${percentage}%`;
+                fillElement.textContent = `${percentage}%`;
+            }, 100);
+            
+            if (labelId) {
+                const shortName = teamName.length > 10 ? teamName.substring(0, 10) + '...' : teamName;
+                document.getElementById(labelId).textContent = shortName;
+            }
+        }
+
+        function updateFormStats(side, formData, teamName) {
+            document.getElementById(`${side}FormTitle`).textContent = `${teamName} (${side === 'home' ? 'Home' : 'Away'})`;
+            document.getElementById(`${side}Wins`).textContent = `${formData.wins}/5`;
+            document.getElementById(`${side}Points`).textContent = formData.points;
+            document.getElementById(`${side}GoalsFor`).textContent = formData.goals_for;
+            document.getElementById(`${side}GoalsAgainst`).textContent = formData.goals_against;
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').classList.add('show');
+        }
+    </script>
+</body>
+</html>
